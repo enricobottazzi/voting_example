@@ -260,7 +260,7 @@ The third goal can be split into 3 smaller parts:
 
 Congratulations! The circuit is now fully designed using different components as lego blocks.
 
-![legoBlocks](imgs/legoBlocks.png "legoBlocks")
+![LegoBlocks](imgs/LegoBlocks.png "legoBlocks")
 
 # Test the circuit
 
@@ -314,7 +314,7 @@ Similar circuits are used in the following applications:
 
 - Variable definition - maybe the `value` input should be called `privateKey` and the `root` inside Mkt2VerifierLevel() can be defined as `nextLevelRoot` to not confuse it with the merkle root 
 - What is F? Creating elements field? What does it mean?
+- In order to run the Mkt2Verifier(nLevels) we need to create another circuit that instanties it. This is done inside ./test/circuits/mkt2_tester.com. Why is that? What does it mean?
 - Add proof generation and verification 
 - Add nullifier
 - Test doesn't work.
-- In order to run the Mkt2Verifier(nLevels) we need to create another circuit that instanties it. This is done inside ./test/circuits/mkt2_tester.com. Why is that?
