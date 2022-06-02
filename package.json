@@ -4,7 +4,7 @@
   "description": "Voting example",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha"
   },
   "keywords": [
     "voting",
@@ -13,10 +13,10 @@
   "author": "Master Blockchain 20-21",
   "license": "GPL-3.0",
   "devDependencies": {
-    "chai": "^4.3.4",
+    "chai": "^4.3.6",
     "circom_tester": "^0.0.7",
     "circomlib": "^2.0.0",
     "circomlibjs": "^0.0.8",
-    "mocha": "^9.1.3"
+    "mocha": "^9.2.2"
   }
 }
