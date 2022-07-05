@@ -1,5 +1,5 @@
 
-
+// Recursive function to build the merkle tree from a list of values included in the array
 function merkelize(F, hash, arr, nLevels) {
 
     const extendedLen = 1 << nLevels;

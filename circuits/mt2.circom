@@ -18,10 +18,6 @@ template Mkt2VerifierLevel() {
     sw.L <== low;
     sw.R <== sibling;
 
-    log(44444444444);
-    log(sw.outL);
-    log(sw.outR);
-
     hash.inputs[0] <== sw.outL;
     hash.inputs[1] <== sw.outR;
 

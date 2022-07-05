@@ -1,12 +1,12 @@
-# Zero Knowledge Proof of Inclusion - Circuit Tutorial
+# Zero Knowledge Proof of Inclusion - Designing Circuits in Circom
 
 In this tutorial we are gonna get our hands dirty by designing a zero knowledge proof application. If you are new to circom, it is encouraged to start from [here](https://docs.circom.io/getting-started/installation/).
 
-The goal here is to allow a person to demonstrate their inclusion within a set of people (census) in a privacy-preserving way. The core elements here are: 
+The goal here is to allow a person to demonstrate their inclusion within a set of people (census) in order to cast a vote. The core elements here are: 
 
 - A person that controls a private key and is identified by the corresponding public key (`pubkey1`)
-- A census that includes a set of people identified by their public key. The census includes many public keys including `pubkey1`
-- A verifier, that wants to be sure that a user is part of the census. 
+- A census that includes a set of people identified by their public keys. The census includes many public keys including `pubkey1`
+- A verifier, that wants to be sure that a user is part of the census in order to cast the vote 
 
 ![census1](imgs/census1.png "census1")
 
@@ -14,7 +14,6 @@ In order to demonostrate his belonging to the census, the person needs to:
 
 1) prove that he/she is the owner of a public key by demonstrating control of the corresponding private key. 
 2) prove that that public key is included in the census
-
 
 ## Non ZKP way to proof inclusion in the census
 
@@ -26,13 +25,13 @@ This approach works fine, but in this case the verifier is fully aware of the id
 
 ## ZKP way - First Attempt
 
-In order to proof the inclusion inside the census in a Zero Knowledge proof and privacy preserving way we need to build a circuit for that. In its most simple definition, a circuit is a deterministic program that takes public and private input and generate output. 
+In order to proof the inclusion inside the census in a privacy preserving way we need to build a circuit for that. 
 
-In this specific case, the program must be designed in order to allow a user to: 
+In this specific case, the circuit must be designed in order to allow a user to: 
 
 1) prove that he/she is the owner of a public key by demonstrating control of the corresponding private key. 
 
-    Let's consider a simple signature schema that hash the public key to generate the private key. The Poseidon template ([circomlib](https://github.com/iden3/circomlib)) allows to generate an hash inside a circuit.
+    Let's consider a simple signature schema that hashes the privaye key to generate the public key. The Poseidon template ([circomlib](https://github.com/iden3/circomlib)) allows to generate an hash inside a circuit.
 
     ![poseidonCircuit](imgs/poseidonCircuit.png "poseidonCircuit")
 
@@ -42,8 +41,9 @@ In this specific case, the program must be designed in order to allow a user to:
 
     ![mainCircuit](imgs/mainCircuit.png "mainCircuit")
 
+Using this circuit a user can generate a proof demonstrating his/her inclusion inside the census without revealing any information about the private key used as input for the circuit and, therefore, about the public key derived from that. 
 
-Using this circuit a person can generate a proof demonstrating his/her inclusion inside the census without revealing any information about the private key used as input for the circuit and, therefore, about the public key derived from that.
+If the proof gets verified, the verifier is confident that a user is part of the census without having to know his/her identifier.
 
 This circuit works but has a problem: it is not scalable. If the census contains an high number of public keys (for example 1M), the circuit will need to recursively check each of the 1M public keys included in the census.
 
@@ -51,7 +51,7 @@ This can be done in a more scalable way using a more efficient data structure to
 
 ## ZKP way - Efficient Attempt
 
-The main difference is this approach is that public keys will be included as leaves inside a Merkle Tree rather that in an simple array. Therefore the proof will need to demonstrate the inclusion of a public key inside this merkle tree.
+The main difference is this approach is that public keys will be included as leaves inside a Merkle Tree rather than in an simple array. Therefore the proof will need to demonstrate the inclusion of a public key inside this merkle tree.
 
 In this case we are gonna take a census composed of 8 public keys that are gonna be the leaves of the merkle tree. The merkle tree has 3 levels and 8 leaves.
 
@@ -79,19 +79,13 @@ The input needed to build the circuit are:
 
 ![circuit1](imgs/circuit1.png "circuit1")
 
-But there's still a problem here. The only thing that the verifier is able to read as public value is the merkle root. Using this circuit, the same user can potentially generate infinite proofs based on the inclusion of the same public key and always have this proof verified from the verifier. This can be a problem if the verifier, for example, wants to assign a single vote according to the inclusion in the census.
-
-To avoid this, we introduce a concept called `nullifier`. The nullifier is a value that must be unique for each user that tries to generate the proof without revealing any information about the identity of the user. In this case the nullifier is the hash between the user's private key and the original message ("Casting vote for ZK Hall of Fame") to extract the nullifier. Each time an individual user tries to generate a proof the nullifier will be the same. The nullifier must be a public output of the circuit so the verifier can check if a nullifier has already been "spent" when verifying the proof. 
-
-![nullifier](imgs/nullifier.png "nullifier")
-
 # Build in Circom
 
 ### Design the circuit
 
-To create our circuit we are gonna leverage already existing circuits defined as templates inside ([circomlib](https://github.com/iden3/circomlib)) such as poseidon, bitify and switcher and create a new support template defined `Mkt2VerifierLevel`. The main circuit is `Mkt2Verifier(nLevels)`.
+To create our circuit we are gonna leverage already existing circuits defined as templates inside [circomlib](https://github.com/iden3/circomlib) such as poseidon, bitify and switcher and create a new support template defined `Mkt2VerifierLevel`. The main circuit is `Mkt2Verifier(nLevels)`.
 
-The first thing is to define the input of the circuit 
+The first thing is to define the input of the circuit as defined previously.
 
 ``` circom 
 template Mkt2Verifier(nLevels) {
@@ -107,12 +101,9 @@ signal input siblings[nLevels];
 
 Let's design the circuit by following the steps defined previously
 
-### 1. Hash the message with the private key to generate the nullifier
+### 1. Use poseidon to hash the privaye key to get the public key 
 
-
-### 2. Use poseidon to hash the privaye key to get the public key 
-
-To accomplish this goal we need to instantiate the Poseidon component insde our circuit and assign our `privateKey` as input for the poseidon circuit. Later on the hashed value, output of the poseidon component, will be used when building the merkle proof.
+To accomplish this goal we need to instantiate the Poseidon component inside our circuit and assign our `privateKey` as input for the poseidon circuit. Later on the hashed value, output of the poseidon component, will be used when building the merkle proof.
 
 ```
 template Mkt2Verifier(nLevels) {
@@ -137,9 +128,9 @@ template Mkt2Verifier(nLevels) {
 }
 ```
 
-### 3. Concatenete the pub key with siblings following the order defined inside the key bits to get to the merkle root and compare it to the merkle root passed as public input
+### 2. Concatenete the pub key with siblings following the order defined inside the key bits to get to the merkle root and compare it to the merkle root passed as public input
 
-The third goal can be split into 3 smaller parts: 
+This goal can be split into 3 smaller parts: 
 
 - First of all we need to convert the `key`, private input of the circuit as integer, into 3 bits format to help our circuit understand the order in which to hash the value and the siblings.
 
@@ -190,7 +181,7 @@ The third goal can be split into 3 smaller parts:
         signal input selector;
         signal output root; 
 
-        component sw = Switcher(); // instantiate the switcher component
+        component sw = Switcher(); // instantiate the Switcher component
         component hash = Poseidon(2); // instantiate the Poseidon component
 
         // assign the input to the switcher circuit
@@ -275,14 +266,14 @@ merkelize
 This dependencies are then used:
 
 - to [generate the merkle tree](https://github.com/jbaylina/voting_example/blob/main/test/mkt2cir.js#L17) leveraging the function [`merkelize`](https://github.com/jbaylina/voting_example/blob/main/js/mkt2.js#L3) 
-- to [extract the merkleProof](https://github.com/jbaylina/voting_example/blob/main/test/mkt2cir.js#L19)(= array of siblings) leveraing the function [`getMerkleProof`](https://github.com/jbaylina/voting_example/blob/main/js/mkt2.js#L34)
+- to [extract the merkleProof](https://github.com/jbaylina/voting_example/blob/main/test/mkt2cir.js#L19) leveraing the function [`getMerkleProof`](https://github.com/jbaylina/voting_example/blob/main/js/mkt2.js#L34)
 
 The helpers to build the merkle tree are contained inside  `./js/mkt2.js`.
 These functions are used inside our test file `./test/mkt2cir.js` to generate and test the circuit
 
-In order to run the Mkt2Verifier(nLevels) we need to create another circuit that instanties it specifing the number of levels of the merkle tree (3, in this case). This is done inside `./test/circuits/mkt2_tester.com`
+In order to run the Mkt2Verifier(nLevels) we need to instanties the circuit designed previously specifing the number of levels of the merkle tree (3, in this case). This is done inside `./test/circuits/mkt2_tester.com`
 
-To test the circuit we need circom tester, which is a [Jvascript library](https://www.npmjs.com/package/circom_tester). Circom tester helps compiling the circuit and generating the witness.
+To test the circuit we need [circom tester](https://www.npmjs.com/package/circom_tester). Circom tester helps compiling the circuit and generating the witness.
 
 In this case we are proofing the existance of the public key generated from the value `33`, stored in position `2` of a merkle tree that contains 8 values as leaves. `[11,22,33,44,55,66,77,88]` represents an array of private keys that will be then hashed to get the 8 leaves of the tree.
 
@@ -296,25 +287,33 @@ In this case we are proofing the existance of the public key generated from the 
         };
 ```
 
-To test the circuit 
+To test the circuit and the merklize function
 ```
 npm i circomtester
-node test
+mocha
 ```
 
-### Use cases
+# To do next
 
-Similar circuits are used in the following applications:
+## Challenge 1 - Verify the proof
 
-- [Semaphore](https://github.com/semaphore-protocol/semaphore), a zero-knowledge protocol for anonymous signalling on Ethereum.
-- [StealthDrop](https://github.com/nalinbhardwaj/stealthdrop), Anonymous Airdrops using ZK-SNARKs
-- [Zeko](https://github.com/enricobottazzi/zeko) Zero Knowledge-based NFT Private Airdrop
+The circuit has been designed and the witness generation has been tested. Still, we haven't generated the proof and had it verified. The next step is generate a proof starting from the input generated inside test/mkt2cir.js and verify it. You can do it following the step defined into the [Circom getting started tutorial](https://docs.circom.io/getting-started/proving-circuits/#verifying-from-a-smart-contract). Bonus point if you are able to execute the verification on-chain.
 
-### Questions and feedback 
+## Challenge 2 - Protect the protocol from replay attacks
 
-- Variable definition - maybe the `value` input should be called `privateKey` and the `root` inside Mkt2VerifierLevel() can be defined as `nextLevelRoot` to not confuse it with the merkle root 
-- What is F? Creating elements field? What does it mean?
-- In order to run the Mkt2Verifier(nLevels) we need to create another circuit that instanties it. This is done inside ./test/circuits/mkt2_tester.com. Why is that? What does it mean?
-- Add proof generation and verification 
-- Add nullifier
-- Test doesn't work.
+There's still a problem here in the circuit we just design. The only thing that the verifier is able to read as public value is the merkle root. Using this circuit, the same user can potentially generate infinite proofs based on the inclusion of the same public key and always have this proof verified from the verifier. This can be a problem if the verifier, for example, wants to assign a single vote to each person according to the inclusion in the census.
+
+To avoid this, we introduce a concept called `nullifier`. The nullifier is a value that must be unique for each user that tries to generate the proof that's not traceable back to the public key of the user. In this case the nullifier is the hash between the user's private key and the original message ("Casting vote for ZK Hall of Fame"). Each time the same user tries to generate a proof the nullifier will be the same. The nullifier must be a public output of the circuit so the verifier can check if a nullifier has already been "spent" when verifying the proof. 
+
+![nullifier](imgs/nullifier.png "nullifier")
+
+Your goal is to introduce the nullifier inside the circuit to avoid people to reuse the same proof and vote more than once. 
+
+Other circuits making use of nullifiers to avoid the "double spending" problem can be found here: 
+
+- [Semaphore](https://github.com/semaphore-protocol/semaphore) - a zero-knowledge protocol for anonymous signalling on Ethereum.
+- [Tornado Cash](https://github.com/tornadocash/tornado-core) - non-custodial private transactions on Ethereum
+
+## Reference
+
+This tutorial is extracted from the live demo performed by Jose Munoz Tapia at ZKHack#2. [Youtube](https://youtu.be/6XxVeBFmIFs?t=4732)
